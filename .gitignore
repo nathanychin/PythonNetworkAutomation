@@ -39,3 +39,6 @@ env/
 # Ignore sensitive or personal information
 config.ini
 secrets.json
+
+# Test scripts
+*_test.py
