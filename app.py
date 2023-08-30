@@ -1,30 +1,31 @@
-from netmiko import ConnectHandler
+from classes.Network import *
+from classes.DeviceInfo import *
 
-# Get Device information from user
-device = {
-    #'device_type': input("Enter device type (cisco_ios, cisco_xe, cisco_nxos, cisco_aci, cisco_asa): "),
-    'device_type': 'cisco_ios_telnet',
-    'ip': input("Enter IP address: "), #Hostname
-    'port': input('Port number: '), #Port number
-    'username': input("Enter username: "),
-    'password': input("Enter password: "),
-}
+def main():
+    D = DeviceInfo().set_device_info()
+    Device = NetDevice(D[0], D[1], D[2], D[3], D[4])
+    
+    host = D[0]
+    port = D[1]
+    
+    print(f'Connecting to {host}: {port}')
+    print("#" * 60)
+    
+    try:
+        Device.NetConnect()
+        print(f"Successfully connected to {host}:{port}")
+        print("#" * 60)
+        Device.NetEnable()
+        Device.NetShVer()
+        print("#" * 60)
+        Device.NetDisconnect()
+        print(f"Disconnected from {host}:{port}")
+        print("#" * 60)
+        
+    except Exception as e:
+        print("Error: " + str(e))
+        print("===================================")
+        print(f"Unable to connect to {host}:{port}")
 
-try:
-    connection = ConnectHandler(**device)
-    print(f"Connecting to device {device['ip']}: {device['port']}")
-    
-    print(f"Connected to {device['ip']}")
-    
-    commands = ['show version']
-    
-    for command in commands:
-        print(f'Sending command: {command}')
-        output = connection.send_command(command)
-        print(f'\n{output}\n')
-    
-    connection.disconnect()
-    print(f"Disconnected from {device['ip']}")
-
-except Exception as e:
-    print("Exception: ", str(e))
+if __name__ == '__main__':
+    main()
