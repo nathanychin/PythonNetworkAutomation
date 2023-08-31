@@ -42,3 +42,4 @@ secrets.json
 
 # Test scripts
 *_test.py
+/templates/

@@ -1,10 +1,11 @@
 import tkinter as tk
-from netmiko import ConnectHandler
+from netmiko import *
 
 class NetmikoApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Netmiko Device Info")
+        self.connection = None # Initialize connection as None
         
         # Create labels and entry fields
         self.device_type_label = tk.Label(root, text="Device Type:")
@@ -30,6 +31,7 @@ class NetmikoApp:
         self.prompt_label = tk.Label(root)
         
         self.connect_button = tk.Button(root, text="Connect", command=self.connect_to_device)
+        self.disconnect_button = tk.Button(root, text="Disconnect", command=self.disconnect_from_device)
         
         # Arrange widgets using grid layout
         self.device_type_label.grid(row=0, column=0, sticky=tk.W)
@@ -52,16 +54,17 @@ class NetmikoApp:
         self.prompt_output = tk.Label(root, textvariable=self.prompt_text)
         self.prompt_output.grid(row=5, column=1, sticky=tk.W)
         
-        self.version_label = tk.Label(root, text="Output:")
-        self.version_text = tk.Text(root)
+        self.output_label = tk.Label(root, text="Output:")
+        self.output_text = tk.Text(root, background="dark gray", fg="white")
         
         self.command_label = tk.Label(root, text="Command:")
         self.command_entry = tk.Entry(root)
-        self.send_button = tk.Button(root, text="Send", command=self.connect_to_device)
+        self.command_entry.bind("<Return>", lambda event=None: self.send_command())
+        self.send_button = tk.Button(root, text="Send", command=self.send_command)
         
         # Configure the Text widget to expand with the window
-        self.version_label.grid(row=6, column=0, sticky=tk.W)
-        self.version_text.grid(row=6, column=1, columnspan=2, sticky="nsew")
+        self.output_label.grid(row=6, column=0, sticky=tk.W)
+        self.output_text.grid(row=6, column=1, columnspan=2, sticky="nsew")
         
         # Configure row and column weights for dynamic resizing
         self.root.grid_rowconfigure(6, weight=1)
@@ -72,6 +75,7 @@ class NetmikoApp:
         self.send_button.grid(row=7, column=2)
         
         self.connect_button.grid(row=5,columnspan=2)
+        self.disconnect_button.grid(row=5, column=1, columnspan=2)
         
     def connect_to_device(self):
         device = {
@@ -82,20 +86,80 @@ class NetmikoApp:
             'password': self.password_entry.get()
         }
         
-        custom_command = self.command_entry.get()
-        
         try:
-            connection = ConnectHandler(**device)
-            prompt = connection.find_prompt()
+            self.connection = ConnectHandler(**device)
+            prompt = self.connection.find_prompt()
             self.prompt_text.set(prompt)
-            
-            output = connection.send_command(custom_command)
-            self.version_text.insert(tk.END, output)
-            
-            connection.disconnect()
+            self.output_text.insert(tk.END, prompt + "\n")
         except Exception as e:
             print("An error occurred:", str(e))
+            
+    def send_command(self):
+        if self.connection:
+            try:
+                custom_command = self.command_entry.get().strip()
+                prompt = self.prompt_text.get()
+                # Clear the command_entry widget
+                self.command_entry.delete(0, tk.END)
+            
+                print(prompt)
+                # Handle mode transitions
+                if custom_command.startswith("en"):
+                    
+                    if ">" in prompt:  # Check if in exec mode
+                        self.connection.enable()  # Enter enable mode
+                        prompt = self.connection.find_prompt()  # Update prompt
+                        print(prompt)
+                elif custom_command.startswith("conf"):
+                    if "#" in prompt:  # Check if in enable mode
+                        self.connection.config_mode()  # Enter config mode
+                        prompt = self.connection.find_prompt()  # Update prompt
+                elif custom_command == "exit" or custom_command == "end":
+                    print(prompt)
+                    if "#" in prompt:  # Check if in config mode
+                        self.connection.exit_config_mode()  # Exit config mode
+                        prompt = self.connection.find_prompt()  # Update prompt
+                        print(prompt)
+            
+                self.prompt_text.set(prompt)
+                output = ""
+                if "conf" in custom_command:
+                    pass
+                else:
+                    output = self.connection.send_command_timing(custom_command)
+                #full_command = f"{prompt} {custom_command}"
+                self.output_text.insert(tk.END,custom_command + "\n" + output + "\n" + prompt)
+                
+                # Scroll to the end of the Text widget
+                self.output_text.see(tk.END)
+                
+                # Bind the spacebar event to the output_text Text widget
+                self.command_entry.bind("<space>", self.scroll_output)
+                
+            except NetmikoTimeoutException:
+                print("Pattern not detected. Command may have failed.")    
+            
+            except Exception as e:
+                print("An error occurred:", str(e))
+        else:
+            print("Not connected to a device.")
 
+    def scroll_output(self, event):
+        # Check if command_entry widget is empty and spacebar is pressed
+        print("scroll_output executed")
+        if not self.command_entry.get() and event.char == " ":
+            self.output_text.yview_scroll(1, "pages")  # Scroll down by one page
+
+    def disconnect_from_device(self):
+        if self.connection:
+            try:
+                self.connection.disconnect()  # Disconnect if connection exists
+                print("Disconnected from device")
+            except Exception as e:
+                print("An error occurred during disconnect:", str(e))
+            finally:
+                self.connection = None  # Set connection to None
+    
 if __name__ == "__main__":
     root = tk.Tk()
     app = NetmikoApp(root)
