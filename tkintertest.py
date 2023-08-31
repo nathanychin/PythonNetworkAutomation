@@ -1,5 +1,7 @@
 import tkinter as tk
 from netmiko import *
+import os
+import subprocess
 
 class NetmikoApp:
     def __init__(self, root):
@@ -33,6 +35,8 @@ class NetmikoApp:
         self.connect_button = tk.Button(root, text="Connect", command=self.connect_to_device)
         self.disconnect_button = tk.Button(root, text="Disconnect", command=self.disconnect_from_device)
         
+        self.superputty_button = tk.Button(root, text="Open SuperPutty", command=self.open_superputty)
+        
         # Arrange widgets using grid layout
         self.device_type_label.grid(row=0, column=0, sticky=tk.W)
         self.device_type_entry.grid(row=0, column=1)
@@ -55,12 +59,15 @@ class NetmikoApp:
         self.prompt_output.grid(row=5, column=1, sticky=tk.W)
         
         self.output_label = tk.Label(root, text="Output:")
-        self.output_text = tk.Text(root, background="dark gray", fg="white")
+        self.output_text = tk.Text(root, background="black", fg="white", state="normal")
+        self.output_text.bind("<Key>", self.disable_text_input)
         
         self.command_label = tk.Label(root, text="Command:")
         self.command_entry = tk.Entry(root)
         self.command_entry.bind("<Return>", lambda event=None: self.send_command())
         self.send_button = tk.Button(root, text="Send", command=self.send_command)
+        
+        self.superputty_button.grid(row=8, column=0, columnspan=3, sticky="w")
         
         # Configure the Text widget to expand with the window
         self.output_label.grid(row=6, column=0, sticky=tk.W)
@@ -149,6 +156,38 @@ class NetmikoApp:
                 print("An error occurred during disconnect:", str(e))
             finally:
                 self.connection = None  # Set connection to None
+
+    def open_superputty(self):
+        # Get the device details
+        device = {
+            'device_type': self.device_type_entry.get(),
+            'ip': self.ip_entry.get(),
+            'port': self.port_entry.get(),
+            'username': self.username_entry.get(),
+            'password': self.password_entry.get()
+        }
+        
+        if self.connection:
+            try:
+                self.connection.disconnect()  # Disconnect if connection exists
+                print("Disconnected from device")
+            except Exception as e:
+                print("An error occurred during disconnect:", str(e))
+            finally:
+                self.connection = None  # Set connection to None
+        
+        superputty_path = r'C:\Users\nachin\Downloads\SuperPuTTY-1.4.0.9\SuperPutty.exe'  # Replace with the actual path
+        superputty_url = f'telnet://{device["ip"]}:{device["port"]}'
+        
+        if os.path.exists(superputty_path):
+            subprocess.Popen([superputty_path, superputty_url], shell=True)
+        else:
+            print("SuperPutty executable not found at the specified path.")
+    
+    def disable_text_input(self, event):
+        # Disable any input into the output text widget
+        return "break"
+
     
 if __name__ == "__main__":
     root = tk.Tk()
