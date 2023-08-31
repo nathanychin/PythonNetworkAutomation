@@ -105,7 +105,6 @@ class NetmikoApp:
                 print(prompt)
                 # Handle mode transitions
                 if custom_command.startswith("en"):
-                    
                     if ">" in prompt:  # Check if in exec mode
                         self.connection.enable()  # Enter enable mode
                         prompt = self.connection.find_prompt()  # Update prompt
@@ -123,18 +122,15 @@ class NetmikoApp:
             
                 self.prompt_text.set(prompt)
                 output = ""
-                if "conf" in custom_command:
+                if "conf" in prompt:
                     pass
                 else:
-                    output = self.connection.send_command_timing(custom_command)
+                    output = self.connection.send_command_timing(custom_command, delay_factor =2)
                 #full_command = f"{prompt} {custom_command}"
                 self.output_text.insert(tk.END,custom_command + "\n" + output + "\n" + prompt)
                 
                 # Scroll to the end of the Text widget
                 self.output_text.see(tk.END)
-                
-                # Bind the spacebar event to the output_text Text widget
-                self.command_entry.bind("<space>", self.scroll_output)
                 
             except NetmikoTimeoutException:
                 print("Pattern not detected. Command may have failed.")    
@@ -143,12 +139,6 @@ class NetmikoApp:
                 print("An error occurred:", str(e))
         else:
             print("Not connected to a device.")
-
-    def scroll_output(self, event):
-        # Check if command_entry widget is empty and spacebar is pressed
-        print("scroll_output executed")
-        if not self.command_entry.get() and event.char == " ":
-            self.output_text.yview_scroll(1, "pages")  # Scroll down by one page
 
     def disconnect_from_device(self):
         if self.connection:
